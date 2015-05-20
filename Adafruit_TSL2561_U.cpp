@@ -368,7 +368,7 @@ uint32_t Adafruit_TSL2561_Unified::calculateLux(uint16_t broadband, uint16_t ir)
 {
   unsigned long chScale;
   unsigned long channel1;
-  unsigned long channel0;  
+  unsigned long channel0;
   
   /* Make sure the sensor isn't saturated! */
   uint16_t clipThreshold;
@@ -492,6 +492,8 @@ bool Adafruit_TSL2561_Unified::getEvent(sensors_event_t *event)
 
   /* Calculate the actual lux value */
   getLuminosity(&broadband, &ir);
+  event->channelBroadband = broadband;
+  event->channelIR = ir;
   event->light = calculateLux(broadband, ir);
   
   return true;
