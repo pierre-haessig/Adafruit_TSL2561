@@ -364,11 +364,9 @@ void Adafruit_TSL2561_Unified::getLuminosity (uint16_t *broadband, uint16_t *ir)
     Returns 0 if the sensor is saturated and the values are unreliable.
 */
 /**************************************************************************/
-uint32_t Adafruit_TSL2561_Unified::calculateLux(uint16_t broadband, uint16_t ir)
+uint32_t Adafruit_TSL2561_Unified::calculateLux(uint16_t broadband, uint16_t ir, unsigned long *channel0, unsigned long *channel1)
 {
   unsigned long chScale;
-  unsigned long channel1;
-  unsigned long channel0;
   
   /* Make sure the sensor isn't saturated! */
   uint16_t clipThreshold;
@@ -409,12 +407,12 @@ uint32_t Adafruit_TSL2561_Unified::calculateLux(uint16_t broadband, uint16_t ir)
   if (!_tsl2561Gain) chScale = chScale << 4;
 
   /* Scale the channel values */
-  channel0 = (broadband * chScale) >> TSL2561_LUX_CHSCALE;
-  channel1 = (ir * chScale) >> TSL2561_LUX_CHSCALE;
+  *channel0 = (broadband * chScale) >> TSL2561_LUX_CHSCALE;
+  *channel1 = (ir * chScale) >> TSL2561_LUX_CHSCALE;
 
   /* Find the ratio of the channel values (Channel1/Channel0) */
   unsigned long ratio1 = 0;
-  if (channel0 != 0) ratio1 = (channel1 << (TSL2561_LUX_RATIOSCALE+1)) / channel0;
+  if (*channel0 != 0) ratio1 = (*channel1 << (TSL2561_LUX_RATIOSCALE+1)) / *channel0;
 
   /* round the ratio value */
   unsigned long ratio = (ratio1 + 1) >> 1;
@@ -458,7 +456,7 @@ uint32_t Adafruit_TSL2561_Unified::calculateLux(uint16_t broadband, uint16_t ir)
 #endif
 
   unsigned long temp;
-  temp = ((channel0 * b) - (channel1 * m));
+  temp = ((*channel0 * b) - (*channel1 * m));
 
   /* Do not allow negative lux value */
   if (temp < 0) temp = 0;
@@ -481,6 +479,7 @@ uint32_t Adafruit_TSL2561_Unified::calculateLux(uint16_t broadband, uint16_t ir)
 bool Adafruit_TSL2561_Unified::getEvent(sensors_event_t *event)
 {
   uint16_t broadband, ir;
+  unsigned long channel0, channel1;
   
   /* Clear the event */
   memset(event, 0, sizeof(sensors_event_t));
@@ -490,11 +489,19 @@ bool Adafruit_TSL2561_Unified::getEvent(sensors_event_t *event)
   event->type      = SENSOR_TYPE_LIGHT;
   event->timestamp = millis();
 
-  /* Calculate the actual lux value */
+  /* get channels */
   getLuminosity(&broadband, &ir);
-  event->channelBroadband = broadband;
-  event->channelIR = ir;
-  event->light = calculateLux(broadband, ir);
+  
+  /* Save the raw channel counts*/
+  event->countBroadband = broadband;
+  event->countIR = ir;
+  
+  /* Calculate the actual lux value */
+  event->light = calculateLux(broadband, ir, &channel0, &channel1);
+  
+  /* Save the scaled channel values */
+  event->channelBroadband = channel0;
+  event->channelIR = channel1;
   
   return true;
 }
